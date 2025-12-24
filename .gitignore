@@ -5,3 +5,9 @@
 # data folder
 /data
 /lorawan-devices
+
+# build output
+/dist
+
+# node
+node_modules/

@@ -1,5 +1,12 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   chirpstack:
+    container_name: chirpstack
     image: chirpstack/chirpstack:4
     command: -c /etc/chirpstack
     restart: unless-stopped
@@ -15,8 +22,10 @@ services:
       - POSTGRESQL_HOST=postgres
     ports:
       - "8080:8080"
+    logging: *default-logging
 
   chirpstack-gateway-bridge:
+    container_name: chirp-gb
     image: chirpstack/chirpstack-gateway-bridge:4
     restart: unless-stopped
     ports:
@@ -29,8 +38,10 @@ services:
       - INTEGRATION__MQTT__COMMAND_TOPIC_TEMPLATE=eu868/gateway/{{ .GatewayID }}/command/#
     depends_on:
       - mosquitto
-  
+    logging: *default-logging
+
   chirpstack-gateway-bridge-basicstation:
+    container_name: chirp-gbb
     image: chirpstack/chirpstack-gateway-bridge:4
     restart: unless-stopped
     command: -c /etc/chirpstack-gateway-bridge/chirpstack-gateway-bridge-basicstation-eu868.toml
@@ -40,8 +51,10 @@ services:
       - ./configuration/chirpstack-gateway-bridge:/etc/chirpstack-gateway-bridge
     depends_on:
       - mosquitto
+    logging: *default-logging
 
   chirpstack-rest-api:
+    container_name: chirp-api
     image: chirpstack/chirpstack-rest-api:4
     restart: unless-stopped
     command: --server chirpstack:8080 --bind 0.0.0.0:8090 --insecure
@@ -49,33 +62,64 @@ services:
       - "8090:8090"
     depends_on:
       - chirpstack
+    logging: *default-logging
 
   postgres:
+    container_name: chirp-postgres
     image: postgres:14-alpine
     restart: unless-stopped
     volumes:
       - ./configuration/postgresql/initdb:/docker-entrypoint-initdb.d
-      - postgresqldata:/var/lib/postgresql/data
+      - ./data/postgresql:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=chirpstack
       - POSTGRES_PASSWORD=chirpstack
       - POSTGRES_DB=chirpstack
+    logging: *default-logging
 
   redis:
+    container_name: chirp-redis
     image: redis:7-alpine
     restart: unless-stopped
     command: redis-server --save 300 1 --save 60 100 --appendonly no
     volumes:
-      - redisdata:/data
+      - ./data/redis:/data
+    logging: *default-logging
 
   mosquitto:
+    container_name: chirp-mqtt
     image: eclipse-mosquitto:2
     restart: unless-stopped
     ports:
-      - "1883:1883"
-    volumes: 
+      - "11883:1883"
+    volumes:
       - ./configuration/mosquitto/config/:/mosquitto/config/
+    logging: *default-logging
 
-volumes:
-  postgresqldata:
-  redisdata:
+  iotown-mqtt-bridge:
+    container_name: iotown-mqtt-bridge
+    build:
+      context: ./iotown-mqtt-bridge
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+      - chirpstack
+    environment:
+      # ChirpStack MQTT (internal)
+      - CHIRPSTACK_MQTT_HOST=mosquitto
+      - CHIRPSTACK_MQTT_PORT=1883
+      - CHIRPSTACK_MQTT_USERNAME=${CHIRPSTACK_MQTT_USERNAME:-}
+      - CHIRPSTACK_MQTT_PASSWORD=${CHIRPSTACK_MQTT_PASSWORD:-}
+      # IOTOWN MQTT (external)
+      - IOTOWN_MQTT_HOST=${IOTOWN_MQTT_HOST}
+      - IOTOWN_MQTT_PORT=${IOTOWN_MQTT_PORT:-8883}
+      - IOTOWN_MQTT_USERNAME=${IOTOWN_MQTT_USERNAME}
+      - IOTOWN_MQTT_PASSWORD=${IOTOWN_MQTT_PASSWORD}
+      - IOTOWN_MQTT_REJECT_UNAUTHORIZED=${IOTOWN_MQTT_REJECT_UNAUTHORIZED:-false}
+      # Mapping
+      - APP_GROUP_MAPPING=${APP_GROUP_MAPPING:-{}}
+      - DEFAULT_GROUP_ID=${DEFAULT_GROUP_ID:-default}
+      # Settings
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    logging: *default-logging
