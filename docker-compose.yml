@@ -91,7 +91,7 @@ services:
     image: eclipse-mosquitto:2
     restart: unless-stopped
     ports:
-      - "11883:1883"
+      - "1883:1883"
     volumes:
       - ./configuration/mosquitto/config/:/mosquitto/config/
     logging: *default-logging
@@ -105,6 +105,8 @@ services:
     depends_on:
       - mosquitto
       - chirpstack
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./configuration/iotown-mqtt-bridge:/etc/iotown-mqtt-bridge
     environment:
