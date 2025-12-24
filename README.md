@@ -1,3 +1,60 @@
+# IOTOWN MQTT Bridge
+
+Bridges device uplink messages from ChirpStack to IOTOWN MQTT server.
+
+## Configuration
+
+Edit `configuration/iotown-mqtt-bridge/config.yml`:
+
+```yaml
+# IOTOWN MQTT server settings
+iotown:
+  mqtt:
+    host: host.docker.internal  # Host machine's localhost
+    port: 8883
+    username: bridge
+    password: your_password
+    rejectUnauthorized: false   # Allow self-signed certificates
+
+# Application ID -> Group ID mapping
+appGroupMapping:
+  550e8400-e29b-41d4-a716-446655440000: factory-a
+  another-app-uuid: warehouse-b
+
+# Default group ID for unmapped applications
+defaultGroupId: default
+
+# Log level: debug, info, warn, error
+logLevel: info
+```
+
+## Topic Transformation
+
+```
+ChirpStack: application/{application_id}/device/{dev_eui}/event/up
+     ↓
+IOTOWN:     iotown/{group_id}/{device_id}/data
+```
+
+## Usage
+
+```bash
+# Build and start
+docker compose up -d iotown-mqtt-bridge
+
+# View logs
+docker compose logs -f iotown-mqtt-bridge
+
+# Restart after config changes
+docker compose restart iotown-mqtt-bridge
+```
+
+## Host Machine Access
+
+If IOTOWN server runs on the host machine, set `host` to `host.docker.internal`.
+
+---
+
 # ChirpStack Docker example
 
 This repository contains a skeleton to setup the [ChirpStack](https://www.chirpstack.io)
