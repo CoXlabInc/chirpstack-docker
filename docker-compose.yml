@@ -105,21 +105,9 @@ services:
     depends_on:
       - mosquitto
       - chirpstack
+    volumes:
+      - ./configuration/iotown-mqtt-bridge:/etc/iotown-mqtt-bridge
     environment:
-      # ChirpStack MQTT (internal)
       - CHIRPSTACK_MQTT_HOST=mosquitto
       - CHIRPSTACK_MQTT_PORT=1883
-      - CHIRPSTACK_MQTT_USERNAME=${CHIRPSTACK_MQTT_USERNAME:-}
-      - CHIRPSTACK_MQTT_PASSWORD=${CHIRPSTACK_MQTT_PASSWORD:-}
-      # IOTOWN MQTT (external)
-      - IOTOWN_MQTT_HOST=${IOTOWN_MQTT_HOST}
-      - IOTOWN_MQTT_PORT=${IOTOWN_MQTT_PORT:-8883}
-      - IOTOWN_MQTT_USERNAME=${IOTOWN_MQTT_USERNAME}
-      - IOTOWN_MQTT_PASSWORD=${IOTOWN_MQTT_PASSWORD}
-      - IOTOWN_MQTT_REJECT_UNAUTHORIZED=${IOTOWN_MQTT_REJECT_UNAUTHORIZED:-false}
-      # Mapping
-      - APP_GROUP_MAPPING=${APP_GROUP_MAPPING:-{}}
-      - DEFAULT_GROUP_ID=${DEFAULT_GROUP_ID:-default}
-      # Settings
-      - LOG_LEVEL=${LOG_LEVEL:-info}
     logging: *default-logging

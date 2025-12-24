@@ -1,5 +1,3 @@
-require('dotenv').config();
-
 const MqttBridge = require('./bridge');
 const logger = require('./logger');
 const config = require('./config');
