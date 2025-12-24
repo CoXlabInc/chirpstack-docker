@@ -9,7 +9,7 @@ chirpstack:
 # External IOTOWN MQTT server (TLS)
 iotown:
   mqtt:
-    host: 172.30.1.3
+    host: host.docker.internal
     port: 8883
     username: bridge
     password: dev_bridge_password
