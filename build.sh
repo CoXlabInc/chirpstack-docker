@@ -99,9 +99,7 @@ done
 # 4. 설정 파일 복사
 echo "[4/5] Copying configuration files..."
 cp docker-compose.yml "${PACKAGE_DIR}/"
-cp .env.example "${PACKAGE_DIR}/"
 cp -r configuration "${PACKAGE_DIR}/"
-cp -r iotown-mqtt-bridge "${PACKAGE_DIR}/"
 
 # 아키텍처 정보 저장
 echo "${TARGET_ARCH}" > "${PACKAGE_DIR}/.arch"
@@ -143,14 +141,9 @@ for IMAGE_FILE in ./images/*.tar; do
     docker load -i "${IMAGE_FILE}"
 done
 
-# 2. .env 파일 확인
-if [ ! -f .env ]; then
-    echo "[2/3] Creating .env file from example..."
-    cp .env.example .env
-    echo "  !! Please edit .env file before starting !!"
-else
-    echo "[2/3] .env file already exists, skipping..."
-fi
+# 2. 설정 파일 확인
+echo "[2/3] Configuration files are in ./configuration/"
+echo "  !! Please edit configuration files before starting !!"
 
 # 3. 데이터 디렉토리 생성
 echo "[3/3] Creating data directories..."
@@ -161,7 +154,7 @@ echo ""
 echo "=== Installation Complete ==="
 echo ""
 echo "Next steps:"
-echo "  1. Edit .env file with your settings"
+echo "  1. Edit configuration files in ./configuration/"
 echo "  2. Run: docker compose up -d"
 echo "  3. Access ChirpStack at http://localhost:8080"
 echo ""
