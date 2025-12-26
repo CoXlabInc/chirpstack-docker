@@ -18,11 +18,11 @@ iotown:
 
 # Application ID -> Group ID mapping
 appGroupMapping:
-  550e8400-e29b-41d4-a716-446655440000: factory-a
-  another-app-uuid: warehouse-b
+  550e8400-e29b-41d4-a716-446655440000: 7f3d2a1e-8b4c-4d5f-9a6b-c8e7f0123456
+  6ba7b810-9dad-11d1-80b4-00c04fd430c8: a1b2c3d4-e5f6-7890-abcd-ef1234567890
 
 # Default group ID for unmapped applications
-defaultGroupId: default
+defaultGroupId: 00000000-0000-0000-0000-000000000000
 
 # Log level: debug, info, warn, error
 logLevel: info
