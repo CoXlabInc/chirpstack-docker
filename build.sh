@@ -3,27 +3,19 @@ set -e
 
 # 사용법 출력
 usage() {
-    echo "Usage: $0 [OPTIONS]"
+    echo "Usage: $0 -a <ARCH>"
     echo ""
     echo "Options:"
-    echo "  -a, --arch ARCH    Target architecture: amd64 or arm64 (default: current system)"
+    echo "  -a, --arch ARCH    Target architecture: amd64 or arm64 (required)"
     echo "  -h, --help         Show this help message"
     echo ""
     echo "Examples:"
-    echo "  $0                 # Build for current architecture"
     echo "  $0 -a amd64        # Build for amd64 (x86_64)"
     echo "  $0 -a arm64        # Build for arm64 (Apple Silicon, AWS Graviton)"
     exit 1
 }
 
-# 기본값: 현재 시스템 아키텍처
-CURRENT_ARCH=$(uname -m)
-case "$CURRENT_ARCH" in
-    x86_64)  TARGET_ARCH="amd64" ;;
-    aarch64) TARGET_ARCH="arm64" ;;
-    arm64)   TARGET_ARCH="arm64" ;;
-    *)       TARGET_ARCH="amd64" ;;
-esac
+TARGET_ARCH=""
 
 # 파라미터 파싱
 while [[ $# -gt 0 ]]; do
@@ -42,6 +34,13 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# 아키텍처 필수 확인
+if [ -z "$TARGET_ARCH" ]; then
+    echo "Error: Architecture is required."
+    echo ""
+    usage
+fi
+
 # 아키텍처 검증
 if [[ "$TARGET_ARCH" != "amd64" && "$TARGET_ARCH" != "arm64" ]]; then
     echo "Error: Invalid architecture '$TARGET_ARCH'. Use 'amd64' or 'arm64'."
@@ -51,7 +50,7 @@ fi
 PLATFORM="linux/${TARGET_ARCH}"
 
 # 패키지 이름 및 버전
-PACKAGE_NAME="chirpstack-package"
+PACKAGE_NAME="chirpstack"
 VERSION=$(date +%Y%m%d-%H%M%S)
 OUTPUT_DIR="./dist"
 PACKAGE_DIR="${OUTPUT_DIR}/${PACKAGE_NAME}"
@@ -135,18 +134,23 @@ fi
 echo ""
 
 # 1. Docker 이미지 로드
-echo "[1/3] Loading Docker images..."
+echo "[1/4] Loading Docker images..."
 for IMAGE_FILE in ./images/*.tar; do
     echo "  Loading ${IMAGE_FILE}..."
     docker load -i "${IMAGE_FILE}"
 done
 
-# 2. 설정 파일 확인
-echo "[2/3] Configuration files are in ./configuration/"
+# 2. 설정 파일 권한 설정
+echo "[2/4] Setting configuration file permissions..."
+find ./configuration -type f -exec chmod 644 {} \;
+find ./configuration -type d -exec chmod 755 {} \;
+
+# 3. 설정 파일 확인
+echo "[3/4] Configuration files are in ./configuration/"
 echo "  !! Please edit configuration files before starting !!"
 
-# 3. 데이터 디렉토리 생성
-echo "[3/3] Creating data directories..."
+# 4. 데이터 디렉토리 생성
+echo "[4/4] Creating data directories..."
 mkdir -p ./data/postgresql
 mkdir -p ./data/redis
 
@@ -162,15 +166,149 @@ INSTALL_SCRIPT
 
 chmod +x "${PACKAGE_DIR}/install.sh"
 
+# update.sh 스크립트 생성
+cat > "${PACKAGE_DIR}/update.sh" << 'UPDATE_SCRIPT'
+#!/bin/bash
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+usage() {
+    echo "Usage: $0 <target_path>"
+    echo ""
+    echo "Update an existing ChirpStack installation with new images."
+    echo ""
+    echo "Arguments:"
+    echo "  target_path    Path to existing ChirpStack installation"
+    echo ""
+    echo "Example:"
+    echo "  $0 /srv/chirpstack"
+    exit 1
+}
+
+if [ -z "$1" ]; then
+    usage
+fi
+
+TARGET_DIR="$1"
+
+if [ ! -d "$TARGET_DIR" ]; then
+    echo "Error: Target directory '$TARGET_DIR' does not exist."
+    exit 1
+fi
+
+if [ ! -f "$TARGET_DIR/docker-compose.yml" ]; then
+    echo "Error: docker-compose.yml not found in '$TARGET_DIR'."
+    echo "Is this a valid ChirpStack installation?"
+    exit 1
+fi
+
+echo "=== ChirpStack Updater ==="
+echo ""
+echo "Source: ${SCRIPT_DIR}"
+echo "Target: ${TARGET_DIR}"
+echo ""
+
+# 아키텍처 확인
+if [ -f "${SCRIPT_DIR}/.arch" ]; then
+    PACKAGE_ARCH=$(cat "${SCRIPT_DIR}/.arch")
+    CURRENT_ARCH=$(uname -m)
+    case "$CURRENT_ARCH" in
+        x86_64)  CURRENT_ARCH="amd64" ;;
+        aarch64) CURRENT_ARCH="arm64" ;;
+        arm64)   CURRENT_ARCH="arm64" ;;
+    esac
+
+    if [ "$PACKAGE_ARCH" != "$CURRENT_ARCH" ]; then
+        echo "WARNING: Package architecture ($PACKAGE_ARCH) differs from system ($CURRENT_ARCH)"
+        read -p "Continue anyway? [y/N] " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
+    fi
+    echo "Architecture: ${PACKAGE_ARCH}"
+    echo ""
+fi
+
+# 1. 설정 파일 변경 확인
+echo "[1/5] Checking configuration changes..."
+if [ -d "${SCRIPT_DIR}/configuration" ] && [ -d "${TARGET_DIR}/configuration" ]; then
+    DIFF_OUTPUT=$(diff -rq "${SCRIPT_DIR}/configuration" "${TARGET_DIR}/configuration" 2>/dev/null || true)
+    if [ -n "$DIFF_OUTPUT" ]; then
+        echo ""
+        echo "!! Configuration differences detected !!"
+        echo "-------------------------------------------"
+        diff -rq "${SCRIPT_DIR}/configuration" "${TARGET_DIR}/configuration" 2>/dev/null || true
+        echo "-------------------------------------------"
+        echo ""
+        echo "New configuration files are in: ${SCRIPT_DIR}/configuration"
+        echo "Review changes and manually update if needed."
+        echo ""
+        read -p "Continue with update? [y/N] " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
+    else
+        echo "  No configuration changes detected."
+    fi
+else
+    echo "  Skipping configuration check."
+fi
+echo ""
+
+# 2. 서비스 중지
+echo "[2/5] Stopping services..."
+cd "$TARGET_DIR"
+docker compose down 2>&1 | sed 's/^/  /'
+echo ""
+
+# 3. 이미지 복사
+echo "[3/5] Copying new images..."
+rm -rf "${TARGET_DIR}/images"
+cp -r "${SCRIPT_DIR}/images" "${TARGET_DIR}/"
+echo ""
+
+# 4. Docker 이미지 로드
+echo "[4/5] Loading Docker images..."
+for IMAGE_FILE in "${TARGET_DIR}"/images/*.tar; do
+    echo "  Loading ${IMAGE_FILE}..."
+    docker load -i "${IMAGE_FILE}" 2>&1 | sed 's/^/    /'
+done
+echo ""
+
+# 5. 서비스 시작
+echo "[5/5] Starting services..."
+docker compose up -d 2>&1 | sed 's/^/  /'
+
+echo ""
+echo "=== Update Complete ==="
+echo ""
+echo "Services have been updated and restarted."
+echo "Check status: docker compose ps"
+echo "View logs: docker compose logs -f"
+echo ""
+UPDATE_SCRIPT
+
+chmod +x "${PACKAGE_DIR}/update.sh"
+
 # docker-compose.yml에서 build 대신 image 사용하도록 수정
-sed -i.bak 's|build:|# build:|g; s|context: ./iotown-mqtt-bridge|# context: ./iotown-mqtt-bridge|g; s|dockerfile: Dockerfile|image: iotown-mqtt-bridge:latest|g' "${PACKAGE_DIR}/docker-compose.yml"
+sed -i.bak 's|    build:|    image: iotown-mqtt-bridge:latest|g' "${PACKAGE_DIR}/docker-compose.yml"
+sed -i.bak '/context: \.\/iotown-mqtt-bridge/d' "${PACKAGE_DIR}/docker-compose.yml"
+sed -i.bak '/dockerfile: Dockerfile/d' "${PACKAGE_DIR}/docker-compose.yml"
 rm -f "${PACKAGE_DIR}/docker-compose.yml.bak"
 
 # 압축
 echo ""
 echo "Creating archive..."
 cd "${OUTPUT_DIR}"
-tar -czvf "${PACKAGE_NAME}-${TARGET_ARCH}-${VERSION}.tar.gz" "${PACKAGE_NAME}"
+if [[ "$(uname)" == "Darwin" ]]; then
+    xattr -cr "${PACKAGE_NAME}"
+    COPYFILE_DISABLE=1 tar -czvf "${PACKAGE_NAME}-${TARGET_ARCH}-${VERSION}.tar.gz" "${PACKAGE_NAME}"
+else
+    tar -czvf "${PACKAGE_NAME}-${TARGET_ARCH}-${VERSION}.tar.gz" "${PACKAGE_NAME}"
+fi
 rm -rf "${PACKAGE_NAME}"
 
 # Dangling 이미지 정리
@@ -181,7 +319,12 @@ echo ""
 echo "=== Build Complete ==="
 echo "Package: ${OUTPUT_DIR}/${PACKAGE_NAME}-${TARGET_ARCH}-${VERSION}.tar.gz"
 echo ""
-echo "To deploy:"
+echo "Fresh install:"
 echo "  1. Copy the package to target machine (${TARGET_ARCH})"
 echo "  2. Extract: tar -xzvf ${PACKAGE_NAME}-${TARGET_ARCH}-${VERSION}.tar.gz"
 echo "  3. Run: cd ${PACKAGE_NAME} && ./install.sh"
+echo ""
+echo "Update existing installation:"
+echo "  1. Copy the package to the server"
+echo "  2. Extract: tar -xzvf ${PACKAGE_NAME}-${TARGET_ARCH}-${VERSION}.tar.gz"
+echo "  3. Run: cd ${PACKAGE_NAME} && ./update.sh /path/to/existing/${PACKAGE_NAME}"
