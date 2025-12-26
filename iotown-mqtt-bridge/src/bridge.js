@@ -46,6 +46,7 @@ class MqttBridge {
 
       logger.info(`Bridging: ${topic} -> ${iotownTopic}`);
       logger.debug(`Metadata: ${JSON.stringify(metadata)}`);
+      logger.debug(`Payload: ${payload}`);
 
       // Publish to IOTOWN
       this.iotownClient.publish(iotownTopic, payload);
