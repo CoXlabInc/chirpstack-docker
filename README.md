@@ -36,6 +36,9 @@ ChirpStack: application/{application_id}/device/{dev_eui}/event/up
 IOTOWN:     iotown/{group_id}/{device_id}/data
 ```
 
+- `group_id`: Mapped from `application_id` via `appGroupMapping` (falls back to `defaultGroupId`)
+- `device_id`: Same as `dev_eui`
+
 ## Usage
 
 ```bash
