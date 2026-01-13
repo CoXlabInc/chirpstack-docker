@@ -12,8 +12,11 @@ const config = {
     protocol: 'mqtt',
     username: rawConfig.chirpstack?.mqtt?.username || '',
     password: rawConfig.chirpstack?.mqtt?.password || '',
-    // ChirpStack uplink topic pattern
-    subscribeTopics: ['application/+/device/+/event/up']
+    // ChirpStack topic patterns
+    subscribeTopics: [
+      'application/+/device/+/event/up',
+      '+/gateway/+/event/stats'  // {region}/gateway/{gateway_id}/event/stats
+    ]
   },
 
   // IOTOWN MQTT (Target)
@@ -29,6 +32,10 @@ const config = {
   // Application ID to Group ID mapping
   appGroupMapping: rawConfig.appGroupMapping || {},
   defaultGroupId: rawConfig.defaultGroupId || 'default',
+
+  // Gateway ID to Group ID mapping
+  gatewayGroupMapping: rawConfig.gatewayGroupMapping || {},
+  defaultGatewayGroupId: rawConfig.defaultGatewayGroupId || 'gateway',
 
   // Bridge settings
   logLevel: rawConfig.logLevel || 'info',

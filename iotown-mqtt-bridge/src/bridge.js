@@ -1,5 +1,6 @@
 const ChirpStackClient = require('./chirpstack-client');
 const IotownClient = require('./iotown-client');
+const PayloadDecoder = require('./payload-decoder');
 const { transformTopic } = require('./mapping');
 const logger = require('./logger');
 
@@ -7,6 +8,7 @@ class MqttBridge {
   constructor() {
     this.chirpstackClient = new ChirpStackClient();
     this.iotownClient = new IotownClient();
+    this.payloadDecoder = new PayloadDecoder();
     this.messageCount = 0;
   }
 
@@ -41,8 +43,19 @@ class MqttBridge {
 
       const { iotownTopic, metadata } = transformed;
 
-      // Pass payload as-is (ChirpStack JSON -> IOTOWN)
-      const payload = message.toString();
+      let payload;
+      if (metadata.type === 'gateway_stats') {
+        // Decode gateway stats (protobuf or JSON) and add region
+        const decoded = this.payloadDecoder.decodeGatewayStats(message);
+        const enrichedData = {
+          region: metadata.region,
+          ...decoded.data
+        };
+        payload = JSON.stringify(enrichedData);
+      } else {
+        // Pass device payload as-is (ChirpStack JSON -> IOTOWN)
+        payload = message.toString();
+      }
 
       logger.info(`Bridging: ${topic} -> ${iotownTopic}`);
       logger.debug(`Metadata: ${JSON.stringify(metadata)}`);

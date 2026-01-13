@@ -8,6 +8,7 @@
     "dev": "node --watch src/index.js"
   },
   "dependencies": {
+    "@chirpstack/chirpstack-api": "^4.10.2",
     "mqtt": "^5.3.0",
     "js-yaml": "^4.1.0"
   },
