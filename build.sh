@@ -220,15 +220,16 @@ log_warn() {
     echo -e "${YELLOW}[WARN]${NC} $1"
 }
 
-# Update config file with backup and notification
-# Sets CONFIG_UPDATED and UPDATED_CONFIGS variables
+# Update config file: keep existing, save new as .new if different
 update_config_file() {
     local src="$1"
     local dst="$2"
     local name="$3"
 
     if [ ! -f "$dst" ]; then
+        mkdir -p "$(dirname "$dst")"
         cp "$src" "$dst"
+        echo -e "  ${GREEN}✓${NC} $name created"
         return 0
     fi
 
@@ -236,16 +237,14 @@ update_config_file() {
         return 0
     fi
 
-    local backup="${dst}.backup.$(date +%Y%m%d%H%M%S)"
-    cp "$dst" "$backup"
-    cp "$src" "$dst"
+    # Save new config as .new for manual review
+    cp "$src" "${dst}.new"
 
-    echo -e "  ${YELLOW}⚠${NC}  $name updated"
-    echo -e "      Backup: ${BLUE}$backup${NC}"
-    echo -e "      Review: ${BLUE}diff $backup $dst${NC}"
+    echo -e "  ${YELLOW}⚠${NC}  $name has changes"
+    echo -e "      New config: ${BLUE}${dst}.new${NC}"
+    echo -e "      Compare: diff ${dst} ${dst}.new"
 
     CONFIG_UPDATED=$((CONFIG_UPDATED + 1))
-    UPDATED_CONFIGS="${UPDATED_CONFIGS}${name}\n"
 }
 
 if [ -z "$1" ]; then

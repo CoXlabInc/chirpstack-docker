@@ -18,8 +18,7 @@ iotown:
 
 # ===== Application ID to Group ID Mapping =====
 # Example:
-#   550e8400-e29b-41d4-a716-446655440000: factory-a
-#   app2-uuid: factory-b
+#   550e8400-e29b-41d4-a716-446655440000: 2a537d65-fb35-4aa4-b095-d47604914c45
 appGroupMapping: {}
 
 # Default group ID for unmapped applications
@@ -27,8 +26,7 @@ defaultGroupId: default
 
 # ===== Gateway ID to Group ID Mapping =====
 # Example:
-#   ac1f09fffe08d587: gateway-group-a
-#   0016c001f1500812: gateway-group-b
+#   ac1f09fffe08d587: 2a537d65-fb35-4aa4-b095-d47604914c45
 gatewayGroupMapping: {}
 
 # Default group ID for unmapped gateways
