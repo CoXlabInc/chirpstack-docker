@@ -25,6 +25,15 @@ appGroupMapping: {}
 # Default group ID for unmapped applications
 defaultGroupId: default
 
+# ===== Gateway ID to Group ID Mapping =====
+# Example:
+#   ac1f09fffe08d587: gateway-group-a
+#   0016c001f1500812: gateway-group-b
+gatewayGroupMapping: {}
+
+# Default group ID for unmapped gateways
+defaultGatewayGroupId: gateway
+
 # ===== Bridge Settings =====
 # Log level: debug, info, warn, error
 logLevel: info

@@ -11,3 +11,6 @@
 
 # node
 node_modules/
+
+# local config
+configuration/iotown-mqtt-bridge/config.yml
