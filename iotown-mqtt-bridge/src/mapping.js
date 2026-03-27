@@ -59,6 +59,48 @@ function buildIotownTopic(groupId, deviceId) {
 }
 
 /**
+ * Parse IOTOWN command topic and extract group_id and device_id
+ * Input: iotown/{group_id}/{device_id}/command
+ */
+function parseIotownCommandTopic(topic) {
+  const regex = /^iotown\/([^/]+)\/([^/]+)\/command$/;
+  const match = topic.match(regex);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    groupId: match[1],
+    deviceId: match[2]
+  };
+}
+
+/**
+ * Reverse lookup: group_id -> application_id list
+ * Since multiple application_ids can map to the same group_id, returns an array
+ */
+function getApplicationIds(groupId) {
+  const applicationIds = [];
+
+  for (const [appId, gId] of Object.entries(config.appGroupMapping)) {
+    if (gId === groupId) {
+      applicationIds.push(appId);
+    }
+  }
+
+  return applicationIds;
+}
+
+/**
+ * Build ChirpStack downlink topic
+ * Output: application/{application_id}/device/{dev_eui}/command/down
+ */
+function buildChirpStackDownlinkTopic(applicationId, devEui) {
+  return `application/${applicationId}/device/${devEui}/command/down`;
+}
+
+/**
  * Transform ChirpStack topic to IOTOWN topic
  */
 function transformTopic(chirpstackTopic) {
@@ -106,5 +148,8 @@ module.exports = {
   getGroupId,
   getGatewayGroupId,
   buildIotownTopic,
-  transformTopic
+  transformTopic,
+  parseIotownCommandTopic,
+  getApplicationIds,
+  buildChirpStackDownlinkTopic
 };

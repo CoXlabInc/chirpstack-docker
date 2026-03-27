@@ -72,6 +72,21 @@ class ChirpStackClient {
     this.onMessageCallback = callback;
   }
 
+  publish(topic, message, options = { qos: 1 }) {
+    if (!this.client || !this.client.connected) {
+      logger.warn(`ChirpStack not connected, dropping downlink to: ${topic}`);
+      return;
+    }
+
+    this.client.publish(topic, message, options, (err) => {
+      if (err) {
+        logger.error(`Failed to publish to ${topic}:`, err.message);
+      } else {
+        logger.debug(`Published to ChirpStack topic: ${topic}`);
+      }
+    });
+  }
+
   disconnect() {
     if (this.client) {
       this.client.end();

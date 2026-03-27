@@ -7,6 +7,7 @@ class IotownClient {
     this.client = null;
     this.connected = false;
     this.messageQueue = [];
+    this.onMessageCallback = null;
   }
 
   connect() {
@@ -32,6 +33,7 @@ class IotownClient {
     this.client.on('connect', () => {
       logger.info('Connected to IOTOWN MQTT broker');
       this.connected = true;
+      this.subscribe();
       this.flushQueue();
     });
 
@@ -54,7 +56,31 @@ class IotownClient {
       this.connected = false;
     });
 
+    this.client.on('message', (topic, message) => {
+      if (this.onMessageCallback) {
+        this.onMessageCallback(topic, message);
+      }
+    });
+
     return this;
+  }
+
+  subscribe() {
+    const topic = config.iotown.subscribeTopic;
+
+    this.client.subscribe(topic, { qos: 1 }, (err, granted) => {
+      if (err) {
+        logger.error('IOTOWN subscription error:', err.message);
+        return;
+      }
+      granted.forEach((g) => {
+        logger.info(`Subscribed to IOTOWN topic: ${g.topic}`);
+      });
+    });
+  }
+
+  onMessage(callback) {
+    this.onMessageCallback = callback;
   }
 
   publish(topic, message, options = { qos: 1 }) {

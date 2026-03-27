@@ -26,7 +26,8 @@ const config = {
     protocol: 'mqtts',
     username: rawConfig.iotown?.mqtt?.username,
     password: rawConfig.iotown?.mqtt?.password,
-    rejectUnauthorized: rawConfig.iotown?.mqtt?.rejectUnauthorized !== false
+    rejectUnauthorized: rawConfig.iotown?.mqtt?.rejectUnauthorized !== false,
+    subscribeTopic: 'iotown/+/+/command'
   },
 
   // Application ID to Group ID mapping
@@ -36,6 +37,12 @@ const config = {
   // Gateway ID to Group ID mapping
   gatewayGroupMapping: rawConfig.gatewayGroupMapping || {},
   defaultGatewayGroupId: rawConfig.defaultGatewayGroupId || 'gateway',
+
+  // Downlink defaults
+  downlink: {
+    defaultFPort: rawConfig.downlink?.defaultFPort || 1,
+    defaultConfirmed: rawConfig.downlink?.defaultConfirmed || false
+  },
 
   // Bridge settings
   logLevel: rawConfig.logLevel || 'info',

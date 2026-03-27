@@ -1,7 +1,8 @@
 const ChirpStackClient = require('./chirpstack-client');
 const IotownClient = require('./iotown-client');
 const PayloadDecoder = require('./payload-decoder');
-const { transformTopic } = require('./mapping');
+const { transformTopic, parseIotownCommandTopic, getApplicationIds, buildChirpStackDownlinkTopic } = require('./mapping');
+const config = require('./config');
 const logger = require('./logger');
 
 class MqttBridge {
@@ -9,7 +10,8 @@ class MqttBridge {
     this.chirpstackClient = new ChirpStackClient();
     this.iotownClient = new IotownClient();
     this.payloadDecoder = new PayloadDecoder();
-    this.messageCount = 0;
+    this.uplinkCount = 0;
+    this.downlinkCount = 0;
   }
 
   start() {
@@ -18,10 +20,15 @@ class MqttBridge {
     // Connect to IOTOWN first (to be ready to receive messages)
     this.iotownClient.connect();
 
-    // Connect to ChirpStack and set up message handler
+    // Connect to ChirpStack and set up uplink handler
     this.chirpstackClient.connect();
     this.chirpstackClient.onMessage((topic, message) => {
-      this.handleMessage(topic, message);
+      this.handleUplink(topic, message);
+    });
+
+    // Set up downlink handler (IOTOWN -> ChirpStack)
+    this.iotownClient.onMessage((topic, message) => {
+      this.handleDownlink(topic, message);
     });
 
     // Graceful shutdown
@@ -31,7 +38,7 @@ class MqttBridge {
     logger.info('MQTT Bridge started successfully');
   }
 
-  handleMessage(topic, message) {
+  handleUplink(topic, message) {
     try {
       // Transform topic
       const transformed = transformTopic(topic);
@@ -64,21 +71,93 @@ class MqttBridge {
       // Publish to IOTOWN
       this.iotownClient.publish(iotownTopic, payload);
 
-      this.messageCount++;
+      this.uplinkCount++;
 
-      if (this.messageCount % 100 === 0) {
-        logger.info(`Total messages bridged: ${this.messageCount}`);
+      if (this.uplinkCount % 100 === 0) {
+        logger.info(`Total uplink messages bridged: ${this.uplinkCount}`);
       }
     } catch (error) {
-      logger.error('Error handling message:', error.message);
+      logger.error('Error handling uplink:', error.message);
     }
+  }
+
+  handleDownlink(topic, message) {
+    try {
+      const parsed = parseIotownCommandTopic(topic);
+
+      if (!parsed) {
+        logger.warn(`Unable to parse IOTOWN command topic: ${topic}`);
+        return;
+      }
+
+      const { groupId, deviceId } = parsed;
+      const applicationIds = getApplicationIds(groupId);
+
+      if (applicationIds.length === 0) {
+        logger.debug(`No application mapping for group ${groupId}, skipping downlink`);
+        return;
+      }
+
+      // Build ChirpStack downlink payload
+      const payload = this.buildDownlinkPayload(deviceId, message);
+
+      if (!payload) {
+        logger.warn(`Invalid downlink payload for device ${deviceId}`);
+        return;
+      }
+
+      const payloadStr = JSON.stringify(payload);
+
+      // Publish to all mapped applications
+      for (const appId of applicationIds) {
+        const downlinkTopic = buildChirpStackDownlinkTopic(appId, deviceId);
+        logger.info(`Downlink: ${topic} -> ${downlinkTopic}`);
+        logger.debug(`Downlink payload: ${payloadStr}`);
+        this.chirpstackClient.publish(downlinkTopic, payloadStr);
+      }
+
+      this.downlinkCount++;
+
+      if (this.downlinkCount % 100 === 0) {
+        logger.info(`Total downlink messages bridged: ${this.downlinkCount}`);
+      }
+    } catch (error) {
+      logger.error('Error handling downlink:', error.message);
+    }
+  }
+
+  buildDownlinkPayload(devEui, message) {
+    let fPort = config.downlink.defaultFPort;
+    let confirmed = config.downlink.defaultConfirmed;
+    let data;
+
+    try {
+      const parsed = JSON.parse(message.toString());
+      fPort = parsed.fPort || fPort;
+      confirmed = parsed.confirmed !== undefined ? parsed.confirmed : confirmed;
+      data = parsed.data;
+    } catch (e) {
+      // Not valid JSON, use raw message as data
+      data = Buffer.from(message).toString('base64');
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    return {
+      devEui,
+      confirmed,
+      fPort,
+      data
+    };
   }
 
   stop() {
     logger.info('Stopping MQTT Bridge...');
     this.chirpstackClient.disconnect();
     this.iotownClient.disconnect();
-    logger.info(`MQTT Bridge stopped. Total messages bridged: ${this.messageCount}`);
+    logger.info(`MQTT Bridge stopped. Uplink: ${this.uplinkCount}, Downlink: ${this.downlinkCount}`);
     process.exit(0);
   }
 }

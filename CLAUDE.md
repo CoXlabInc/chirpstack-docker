@@ -13,7 +13,7 @@
 
 ## iotown-mqtt-bridge
 
-Node.js service that bridges MQTT messages from ChirpStack to IOTOWN.
+Node.js service that bridges MQTT messages between ChirpStack and IOTOWN (uplink and downlink).
 
 ### Structure
 
@@ -39,6 +39,8 @@ iotown-mqtt-bridge/
 
 ### Topic Transformation
 
+#### Uplink (ChirpStack → IOTOWN)
+
 ```
 ChirpStack: application/{application_id}/device/{dev_eui}/event/up
      ↓
@@ -47,6 +49,19 @@ IOTOWN:     iotown/{group_id}/{device_id}/data
 
 - `application_id` → `group_id`: Mapped via `appGroupMapping`, falls back to `defaultGroupId`
 - `dev_eui` → `device_id`: Same value
+
+#### Downlink (IOTOWN → ChirpStack)
+
+```
+IOTOWN:     iotown/{group_id}/{device_id}/command
+     ↓
+ChirpStack: application/{application_id}/device/{dev_eui}/command/down
+```
+
+- `group_id` → `application_id`: Reverse lookup of `appGroupMapping` (may match multiple application_ids)
+- If no mapping found, downlink is skipped (device is not a ChirpStack device)
+- `device_id` → `dev_eui`: Same value
+- Payload: JSON with `fPort`, `confirmed`, `data` (base64). Missing fields use defaults from config
 
 ### Host Machine Access
 
