@@ -32,6 +32,12 @@ gatewayGroupMapping: {}
 # Default group ID for unmapped gateways
 defaultGatewayGroupId: gateway
 
+# ===== Downlink Settings =====
+# Default values used when IOTOWN command payload is missing fields
+downlink:
+  defaultFPort: 1
+  defaultConfirmed: false
+
 # ===== Bridge Settings =====
 # Log level: debug, info, warn, error
 logLevel: info
