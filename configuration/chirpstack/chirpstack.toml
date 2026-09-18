@@ -81,6 +81,12 @@
     "us915_1",
   ]
 
+  # Custom ADR algorithms. The kr920_sf56 plugin is selected only by the
+  # Device Profile for RP002-1.0.5-capable KR920 devices.
+  adr_plugins=[
+    "/etc/chirpstack/adr_plugins/kr920_sf56.js",
+  ]
+
 
 # API interface configuration.
 [api]

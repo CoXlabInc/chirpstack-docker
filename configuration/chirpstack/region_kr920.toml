@@ -178,33 +178,34 @@
     # Maximum data-rate.
     max_dr=5
 
+    # After the extra channels have been accepted through NewChannelReq, use
+    # only channel indices 3-7. The three KR920 default channels (0-2) remain
+    # DR0-DR5 only and therefore must not be selected for DR12 or DR13 uplinks.
+    # Legacy Device Profiles remain compatible because their NewChannelReq
+    # intersection is limited to DR0-DR5.
+    enabled_uplink_channels=[3, 4, 5, 6, 7]
 
     # Extra channels (JoinAccept CFList)
     [[regions.network.extra_channels]]
       frequency=922700000
-      min_dr=0
-      max_dr=5
+      # RP002-1.0.5: encoded as NewChannelReq DRRange MaxDR=0, MinDR=1.
+      data_rates=[0, 1, 2, 3, 4, 5, 12, 13]
 
     [[regions.network.extra_channels]]
       frequency=922900000
-      min_dr=0
-      max_dr=5
+      data_rates=[0, 1, 2, 3, 4, 5, 12, 13]
 
     [[regions.network.extra_channels]]
       frequency=923100000
-      min_dr=0
-      max_dr=5
+      data_rates=[0, 1, 2, 3, 4, 5, 12, 13]
 
     [[regions.network.extra_channels]]
       frequency=923300000
-      min_dr=0
-      max_dr=5
+      data_rates=[0, 1, 2, 3, 4, 5, 12, 13]
 
     [[regions.network.extra_channels]]
       frequency=921900000
-      min_dr=0
-      max_dr=5
-
+      data_rates=[0, 1, 2, 3, 4, 5, 12, 13]
 
     # Rejoin-request configuration (LoRaWAN 1.1)
     [regions.network.rejoin_request]
