@@ -24,6 +24,14 @@ appGroupMapping: {}
 # Default group ID for unmapped applications
 defaultGroupId: default
 
+# ===== Applications excluded from bridging =====
+# Device uplinks from these ChirpStack application IDs are not forwarded to IOTOWN.
+# Use this for the application that holds EdgeEye virtual session devices.
+# Example:
+#   excludeApplications:
+#     - 4ffa3b95-9424-4bf2-8d15-1ff02534ae37
+excludeApplications: []
+
 # ===== Gateway ID to Group ID Mapping =====
 # Example:
 #   ac1f09fffe08d587: 2a537d65-fb35-4aa4-b095-d47604914c45

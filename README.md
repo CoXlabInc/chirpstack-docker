@@ -24,6 +24,11 @@ appGroupMapping:
 # Default group ID for unmapped applications
 defaultGroupId: 00000000-0000-0000-0000-000000000000
 
+# Applications whose device uplinks are not forwarded to IOTOWN
+# (e.g. the application holding EdgeEye virtual session devices)
+excludeApplications:
+  - 4ffa3b95-9424-4bf2-8d15-1ff02534ae37
+
 # Log level: debug, info, warn, error
 logLevel: info
 ```
@@ -37,6 +42,7 @@ IOTOWN:     iotown/{group_id}/{device_id}/data
 ```
 
 - `group_id`: Mapped from `application_id` via `appGroupMapping` (falls back to `defaultGroupId`)
+- Applications listed in `excludeApplications` are skipped entirely (nothing is published to IOTOWN)
 - `device_id`: Same as `dev_eui`
 
 ## Usage

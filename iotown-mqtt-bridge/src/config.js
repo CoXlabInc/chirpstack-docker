@@ -34,6 +34,12 @@ const config = {
   appGroupMapping: rawConfig.appGroupMapping || {},
   defaultGroupId: rawConfig.defaultGroupId || 'default',
 
+  // Applications whose device uplinks must not be bridged to IOTOWN
+  // (e.g. the application holding EdgeEye virtual session devices)
+  excludeApplications: Array.isArray(rawConfig.excludeApplications)
+    ? rawConfig.excludeApplications.map(String)
+    : [],
+
   // Gateway ID to Group ID mapping
   gatewayGroupMapping: rawConfig.gatewayGroupMapping || {},
   defaultGatewayGroupId: rawConfig.defaultGatewayGroupId || 'gateway',

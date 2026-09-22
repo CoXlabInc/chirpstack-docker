@@ -50,6 +50,11 @@ class MqttBridge {
 
       const { iotownTopic, metadata } = transformed;
 
+      if (metadata.type === 'device' && config.excludeApplications.includes(metadata.applicationId)) {
+        logger.debug(`Skipping uplink from excluded application ${metadata.applicationId}: ${topic}`);
+        return;
+      }
+
       let payload;
       if (metadata.type === 'gateway_stats') {
         // Decode gateway stats (protobuf or JSON) and add region

@@ -48,6 +48,7 @@ IOTOWN:     iotown/{group_id}/{device_id}/data
 ```
 
 - `application_id` → `group_id`: Mapped via `appGroupMapping`, falls back to `defaultGroupId`
+- Applications in `excludeApplications` are not bridged at all (used for EdgeEye virtual session devices)
 - `dev_eui` → `device_id`: Same value
 
 #### Downlink (IOTOWN → ChirpStack)
