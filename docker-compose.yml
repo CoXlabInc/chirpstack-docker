@@ -81,7 +81,7 @@ services:
     container_name: chirp-redis
     image: redis:7-alpine
     restart: unless-stopped
-    command: redis-server --save 300 1 --save 60 100 --appendonly no
+    command: redis-server --save 3600 1 --appendonly no
     volumes:
       - ./data/redis:/data
     logging: *default-logging
