@@ -1,6 +1,7 @@
 const MqttBridge = require('./bridge');
 const logger = require('./logger');
 const config = require('./config');
+const { startWebServer } = require('./web/server');
 
 // Validate configuration
 function validateConfig() {
@@ -26,7 +27,7 @@ function main() {
   logger.info(`ChirpStack MQTT: ${config.chirpstack.host}:${config.chirpstack.port}`);
   logger.info(`IOTOWN MQTT: ${config.iotown.host}:${config.iotown.port}`);
   logger.info(`Application mappings: ${Object.keys(config.appGroupMapping).length}`);
-  logger.info(`Default group ID: ${config.defaultGroupId}`);
+  logger.info(`Default group ID: ${config.defaultGroupId || '(none, unmapped applications are not forwarded)'}`);
 
   if (Object.keys(config.appGroupMapping).length > 0) {
     logger.debug(`Mappings: ${JSON.stringify(config.appGroupMapping)}`);
@@ -36,6 +37,11 @@ function main() {
 
   const bridge = new MqttBridge();
   bridge.start();
+
+  // WEB_PORT=0 turns the web UI off
+  if (process.env.WEB_PORT !== '0') {
+    startWebServer(bridge).catch((err) => logger.error('Web UI failed to start:', err.message));
+  }
 }
 
 main();

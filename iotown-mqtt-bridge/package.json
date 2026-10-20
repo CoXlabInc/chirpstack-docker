@@ -1,6 +1,6 @@
 {
   "name": "iotown-mqtt-bridge",
-  "version": "1.0.0",
+  "version": "1.1.16",
   "description": "MQTT bridge between ChirpStack and IOTOWN",
   "main": "src/index.js",
   "scripts": {
@@ -9,10 +9,14 @@
   },
   "dependencies": {
     "@chirpstack/chirpstack-api": "^4.10.2",
+    "@fastify/cookie": "^11.1.3",
+    "@fastify/static": "^10.1.6",
+    "fastify": "^5.12.7",
     "mqtt": "^5.3.0",
-    "js-yaml": "^4.1.0"
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   }
 }

@@ -17,6 +17,9 @@ class ChirpStackClient {
       reconnectPeriod: config.reconnectInterval,
       connectTimeout: 30000
     };
+    if (config.chirpstack.protocol === 'mqtts') {
+      options.rejectUnauthorized = config.chirpstack.rejectUnauthorized;
+    }
 
     // Add authentication if provided
     if (config.chirpstack.username) {

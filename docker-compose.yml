@@ -3,6 +3,9 @@ x-logging: &default-logging
   options:
     max-size: "10m"
     max-file: "3"
+    # Container name in each log record, so log collectors (e.g. promtail into Grafana Loki)
+    # can tell the containers apart
+    tag: "{{.Name}}"
 
 services:
   chirpstack:
@@ -107,6 +110,9 @@ services:
       - chirpstack
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    ports:
+      # Web UI; set BRIDGE_WEB_PORT in .env to publish it on another host port
+      - "${BRIDGE_WEB_PORT:-8081}:8081"
     volumes:
       - ./configuration/iotown-mqtt-bridge:/etc/iotown-mqtt-bridge
     environment:

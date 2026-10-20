@@ -21,7 +21,7 @@ appGroupMapping:
   550e8400-e29b-41d4-a716-446655440000: 7f3d2a1e-8b4c-4d5f-9a6b-c8e7f0123456
   6ba7b810-9dad-11d1-80b4-00c04fd430c8: a1b2c3d4-e5f6-7890-abcd-ef1234567890
 
-# Default group ID for unmapped applications
+# Default group ID for unmapped applications (leave empty to not forward them)
 defaultGroupId: 00000000-0000-0000-0000-000000000000
 
 # Applications whose device uplinks are not forwarded to IOTOWN
@@ -33,6 +33,47 @@ excludeApplications:
 logLevel: info
 ```
 
+## Web UI
+
+The bridge serves a web UI on port 8081 (plain HTTP, like the ChirpStack UI on 8080; set
+`BRIDGE_WEB_PORT` in `.env` to publish it on another host port) for editing `config.yml` without
+restarting:
+
+- **Status**: ChirpStack and IOTOWN MQTT connection state, message counters, recent errors
+- **Mapping**: application → IOTOWN group, excluded applications, gateway → group, downlink defaults
+  (applied immediately)
+- **Connections**: ChirpStack (the one installed alongside, or an external server), IOTOWN address and bridge
+  account, ChirpStack API key (changed connections reconnect)
+- **Logs**: the bridge log, live, and the logging level (what the bridge records)
+
+The first login is `admin` / `admin`, and a new password is required before anything else. The password
+hash is stored in `web-auth.json` next to `config.yml`, so the `configuration/iotown-mqtt-bridge`
+directory must be writable by uid 1000 (the container's `node` user); the `install.sh` and `update.sh` of a
+`build.sh` package set this when run as root. Saving from the UI keeps the comments in `config.yml`.
+
+The mapping page picks applications and gateways by name through the ChirpStack REST API, so an admin
+API key from ChirpStack (API keys) must be entered under Connections first. Set `WEB_PORT=0` to turn the
+UI off.
+
+## Server-specific changes
+
+Keep changes for one server out of `docker-compose.yml`, so it can be updated by `git pull` or by the
+`update.sh` of a `build.sh` package (which replaces it and keeps the old one as
+`docker-compose.yml.backup.<time>`):
+
+- Ports, extra mounts and other service changes go in `docker-compose.override.yml` next to it, which
+  Docker Compose merges automatically (`ports: !override` replaces a service's ports instead of adding).
+- The bridge web UI's host port can also be set in `.env`, e.g. `BRIDGE_WEB_PORT=8084`.
+
+Example, running a custom ChirpStack binary:
+
+```yaml
+services:
+  chirpstack:
+    volumes:
+      - ./bin_amd64/chirpstack:/usr/bin/chirpstack:ro
+```
+
 ## Topic Transformation
 
 ```
@@ -41,7 +82,8 @@ ChirpStack: application/{application_id}/device/{dev_eui}/event/up
 IOTOWN:     iotown/{group_id}/{device_id}/data
 ```
 
-- `group_id`: Mapped from `application_id` via `appGroupMapping` (falls back to `defaultGroupId`)
+- `group_id`: Mapped from `application_id` via `appGroupMapping` (falls back to `defaultGroupId`; not forwarded
+  when that is empty)
 - Applications listed in `excludeApplications` are skipped entirely (nothing is published to IOTOWN)
 - `device_id`: Same as `dev_eui`
 

@@ -83,9 +83,11 @@ if [ "$BRIDGE_ONLY" = true ]; then
     echo "[2/4] Saving bridge image..."
     docker save iotown-mqtt-bridge:latest | gzip > "${PACKAGE_DIR}/images.tar.gz"
 
-    echo "[3/4] Copying bridge configuration..."
+    echo "[3/4] Copying bridge configuration and docker-compose.yml..."
     mkdir -p "${PACKAGE_DIR}/configuration/iotown-mqtt-bridge"
     cp configuration/iotown-mqtt-bridge/config.yml.example "${PACKAGE_DIR}/configuration/iotown-mqtt-bridge/config.yml"
+    # update.sh replaces the server's docker-compose.yml with this one when it changed
+    cp docker-compose.yml "${PACKAGE_DIR}/"
 
     # 아키텍처 정보 저장
     echo "${TARGET_ARCH}" > "${PACKAGE_DIR}/.arch"
@@ -170,6 +172,14 @@ gunzip -c images.tar.gz | docker load
 echo "[2/4] Setting configuration file permissions..."
 find ./configuration -type f -exec chmod 644 {} \;
 find ./configuration -type d -exec chmod 755 {} \;
+# The bridge runs as uid 1000 (the image's node user) and its web UI writes config.yml and
+# web-auth.json in its configuration directory
+if [ "$(id -u)" -eq 0 ]; then
+    chown -R 1000:1000 ./configuration/iotown-mqtt-bridge
+elif [ "$(id -u)" -ne 1000 ]; then
+    echo "  WARNING: the bridge web UI cannot save settings until you run:"
+    echo "    sudo chown -R 1000:1000 $(pwd)/configuration/iotown-mqtt-bridge"
+fi
 
 # 3. 설정 파일 확인
 echo "[3/4] Configuration files are in ./configuration/"
@@ -191,13 +201,13 @@ echo ""
 INSTALL_SCRIPT
 
     chmod +x "${PACKAGE_DIR}/install.sh"
-
-    # docker-compose.yml에서 build 대신 image 사용하도록 수정
-    sed -i.bak 's|    build:|    image: iotown-mqtt-bridge:latest|g' "${PACKAGE_DIR}/docker-compose.yml"
-    sed -i.bak '/context: \.\/iotown-mqtt-bridge/d' "${PACKAGE_DIR}/docker-compose.yml"
-    sed -i.bak '/dockerfile: Dockerfile/d' "${PACKAGE_DIR}/docker-compose.yml"
-    rm -f "${PACKAGE_DIR}/docker-compose.yml.bak"
 fi
+
+# docker-compose.yml에서 build 대신 image 사용하도록 수정
+sed -i.bak 's|    build:|    image: iotown-mqtt-bridge:latest|g' "${PACKAGE_DIR}/docker-compose.yml"
+sed -i.bak '/context: \.\/iotown-mqtt-bridge/d' "${PACKAGE_DIR}/docker-compose.yml"
+sed -i.bak '/dockerfile: Dockerfile/d' "${PACKAGE_DIR}/docker-compose.yml"
+rm -f "${PACKAGE_DIR}/docker-compose.yml.bak"
 
 # update.sh 스크립트 생성
 cat > "${PACKAGE_DIR}/update.sh" << 'UPDATE_SCRIPT'
@@ -245,6 +255,24 @@ update_config_file() {
     echo -e "      Compare: diff ${dst} ${dst}.new"
 
     CONFIG_UPDATED=$((CONFIG_UPDATED + 1))
+}
+
+# docker-compose.yml belongs to the package: replace it when it changed and keep the old one as a
+# backup. Server-specific changes go in docker-compose.override.yml and .env, which are never touched.
+update_compose_file() {
+    local src="${SCRIPT_DIR}/docker-compose.yml"
+    local dst="${TARGET_DIR}/docker-compose.yml"
+    [ -f "$src" ] || return 0
+    if diff -q "$src" "$dst" > /dev/null 2>&1; then
+        return 0
+    fi
+    local backup="${dst}.backup.$(date +%Y%m%d%H%M%S)"
+    cp -p "$dst" "$backup"
+    cp "$src" "$dst"
+    echo -e "  ${YELLOW}⚠${NC}  docker-compose.yml replaced"
+    echo -e "      Previous: ${BLUE}${backup}${NC}"
+    echo -e "      Server-specific changes belong in docker-compose.override.yml (bridge web port: .env)"
+    COMPOSE_UPDATED=true
 }
 
 if [ -z "$1" ]; then
@@ -331,6 +359,9 @@ gunzip -c "${SCRIPT_DIR}/images.tar.gz" | docker load
 log_info "[3/4] Updating configuration..."
 CONFIG_UPDATED=0
 UPDATED_CONFIGS=""
+COMPOSE_UPDATED=false
+
+update_compose_file
 
 if [ "$BRIDGE_ONLY" = true ]; then
     update_config_file \
@@ -338,21 +369,40 @@ if [ "$BRIDGE_ONLY" = true ]; then
         "${TARGET_DIR}/configuration/iotown-mqtt-bridge/config.yml" \
         "configuration/iotown-mqtt-bridge/config.yml"
 else
-    find "${SCRIPT_DIR}/configuration" -type f \( -name "*.yml" -o -name "*.toml" -o -name "*.conf" \) 2>/dev/null | while read -r src; do
+    # In this shell (not a pipe) so CONFIG_UPDATED counts, and with "if" so a file this server does
+    # not have is skipped without ending the script (set -e) while the services are down
+    while read -r src; do
         rel_path="${src#${SCRIPT_DIR}/}"
         dst="${TARGET_DIR}/${rel_path}"
-        [ -f "$dst" ] && update_config_file "$src" "$dst" "$rel_path"
-    done
+        if [ -f "$dst" ]; then
+            update_config_file "$src" "$dst" "$rel_path"
+        fi
+    done < <(find "${SCRIPT_DIR}/configuration" -type f \( -name "*.yml" -o -name "*.toml" -o -name "*.conf" \) 2>/dev/null)
 fi
 
 if [ "$CONFIG_UPDATED" -eq 0 ]; then
     echo "  No configuration changes."
 fi
 
+# The bridge runs as uid 1000 (the image's node user) and its web UI writes config.yml and
+# web-auth.json in its configuration directory; installs from before the web UI need this too
+BRIDGE_CONF_DIR="${TARGET_DIR}/configuration/iotown-mqtt-bridge"
+if [ -d "$BRIDGE_CONF_DIR" ]; then
+    if [ "$(id -u)" -eq 0 ]; then
+        chown -R 1000:1000 "$BRIDGE_CONF_DIR"
+    elif [ "$(id -u)" -ne 1000 ]; then
+        log_warn "The bridge web UI cannot save settings until you run: sudo chown -R 1000:1000 $BRIDGE_CONF_DIR"
+    fi
+fi
+
 # 4. 서비스 시작
 if [ "$BRIDGE_ONLY" = true ]; then
     log_info "[4/4] Starting iotown-mqtt-bridge..."
-    docker compose up -d iotown-mqtt-bridge 2>/dev/null
+    # Only the bridge: ChirpStack keeps running even when docker-compose.yml changed for it too
+    docker compose up -d --no-deps iotown-mqtt-bridge 2>/dev/null
+    if [ "$COMPOSE_UPDATED" = true ]; then
+        echo "  Other services pick up the new docker-compose.yml when restarted: docker compose up -d"
+    fi
 else
     log_info "[4/4] Starting services..."
     docker compose up -d 2>/dev/null
@@ -366,11 +416,11 @@ echo ""
 
 if [ "$CONFIG_UPDATED" -gt 0 ]; then
     echo -e "${YELLOW}┌────────────────────────────────────────────────────────────┐${NC}"
-    echo -e "${YELLOW}│${NC}  ⚠️  $CONFIG_UPDATED config file(s) updated                              ${YELLOW}│${NC}"
+    echo -e "${YELLOW}│${NC}  ⚠️  $CONFIG_UPDATED config file(s) differ from this package            ${YELLOW}│${NC}"
     echo -e "${YELLOW}├────────────────────────────────────────────────────────────┤${NC}"
-    echo -e "${YELLOW}│${NC}  Merge your custom settings from backup if needed.        ${YELLOW}│${NC}"
-    echo -e "${YELLOW}│${NC}  Backups: .backup.YYYYMMDDHHMMSS                           ${YELLOW}│${NC}"
-    echo -e "${YELLOW}│${NC}  Compare: diff <backup> <file>                             ${YELLOW}│${NC}"
+    echo -e "${YELLOW}│${NC}  New versions are saved next to them as <file>.new.        ${YELLOW}│${NC}"
+    echo -e "${YELLOW}│${NC}  Merge what you need, then delete the .new files.          ${YELLOW}│${NC}"
+    echo -e "${YELLOW}│${NC}  Compare: diff <file> <file>.new                           ${YELLOW}│${NC}"
     echo -e "${YELLOW}└────────────────────────────────────────────────────────────┘${NC}"
     echo ""
 fi

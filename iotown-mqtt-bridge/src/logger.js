@@ -7,33 +7,56 @@ const levels = {
   debug: 3
 };
 
-const currentLevel = levels[config.logLevel] || levels.info;
+// Kept in memory for the web UI's live log view and status page
+const MAX_LINES = 2000;
+const MAX_ERRORS = 20;
+const lines = [];
+const errors = [];
+const listeners = new Set();
+
+// Read on every call so a log level changed from the web UI applies right away
+function currentLevel() {
+  return levels[config.logLevel] ?? levels.info;
+}
 
 function formatMessage(level, ...args) {
   const timestamp = new Date().toISOString();
   return `[${timestamp}] [${level.toUpperCase()}] ${args.join(' ')}`;
 }
 
+function emit(level, write, args) {
+  if (currentLevel() < levels[level]) {
+    return;
+  }
+  const line = formatMessage(level, ...args);
+  write(line);
+
+  lines.push(line);
+  if (lines.length > MAX_LINES) {
+    lines.shift();
+  }
+  if (level === 'error') {
+    errors.push(line);
+    if (errors.length > MAX_ERRORS) {
+      errors.shift();
+    }
+  }
+  for (const listener of listeners) {
+    listener(line);
+  }
+}
+
 const logger = {
-  error: (...args) => {
-    if (currentLevel >= levels.error) {
-      console.error(formatMessage('error', ...args));
-    }
-  },
-  warn: (...args) => {
-    if (currentLevel >= levels.warn) {
-      console.warn(formatMessage('warn', ...args));
-    }
-  },
-  info: (...args) => {
-    if (currentLevel >= levels.info) {
-      console.log(formatMessage('info', ...args));
-    }
-  },
-  debug: (...args) => {
-    if (currentLevel >= levels.debug) {
-      console.log(formatMessage('debug', ...args));
-    }
+  error: (...args) => emit('error', console.error, args),
+  warn: (...args) => emit('warn', console.warn, args),
+  info: (...args) => emit('info', console.log, args),
+  debug: (...args) => emit('debug', console.log, args),
+
+  recentLines: (count) => lines.slice(-count),
+  recentErrors: () => errors.slice(),
+  subscribe: (listener) => {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
   }
 };
 

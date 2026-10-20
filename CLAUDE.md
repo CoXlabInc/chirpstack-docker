@@ -26,10 +26,16 @@ iotown-mqtt-bridge/
 │   ├── chirpstack-client.js  # ChirpStack MQTT client
 │   ├── iotown-client.js      # IOTOWN MQTT client (TLS)
 │   ├── mapping.js         # Topic transformation logic
-│   └── logger.js          # Logging utility
+│   ├── logger.js          # Logging utility (also keeps recent lines for the web UI)
+│   ├── config-store.js    # Saves config.yml from the web UI, keeping comments
+│   └── web/               # Web UI server (Fastify): auth, settings API, live log (SSE)
+├── ui/                    # Web UI (Vite + React + shadcn/ui), built into the image
 ├── package.json
 └── Dockerfile
 ```
+
+- The web UI listens on 8081. Config changes from it rewrite `config.yml` and reload it in place
+  (`config.reload()`); mapping applies immediately, connection changes reconnect the MQTT clients.
 
 ### Configuration
 
@@ -47,7 +53,7 @@ ChirpStack: application/{application_id}/device/{dev_eui}/event/up
 IOTOWN:     iotown/{group_id}/{device_id}/data
 ```
 
-- `application_id` → `group_id`: Mapped via `appGroupMapping`, falls back to `defaultGroupId`
+- `application_id` → `group_id`: Mapped via `appGroupMapping`, falls back to `defaultGroupId` (not forwarded when empty)
 - Applications in `excludeApplications` are not bridged at all (used for EdgeEye virtual session devices)
 - `dev_eui` → `device_id`: Same value
 

@@ -111,7 +111,8 @@ function transformTopic(chirpstackTopic) {
     const deviceId = deviceParsed.devEui;
 
     return {
-      iotownTopic: buildIotownTopic(groupId, deviceId),
+      // null when the application has no group and there is no default group: not forwarded
+      iotownTopic: groupId ? buildIotownTopic(groupId, deviceId) : null,
       metadata: {
         type: 'device',
         applicationId: deviceParsed.applicationId,
@@ -129,7 +130,8 @@ function transformTopic(chirpstackTopic) {
     const groupId = getGatewayGroupId(gatewayId);
 
     return {
-      iotownTopic: buildIotownTopic(groupId, gatewayId),
+      // null when the gateway has no group and there is no default group: not forwarded
+      iotownTopic: groupId ? buildIotownTopic(groupId, gatewayId) : null,
       metadata: {
         type: 'gateway_stats',
         region: region,

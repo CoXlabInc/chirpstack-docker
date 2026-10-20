@@ -4,6 +4,11 @@ chirpstack:
   mqtt:
     username: ""
     password: ""
+  # ChirpStack REST API, used by the web UI to list applications and gateways.
+  # An admin API key (ChirpStack > API keys) is required; enter it on the web UI's Connections page.
+  api:
+    url: http://chirpstack-rest-api:8090
+    token: ""
 
 # ===== IOTOWN MQTT Configuration =====
 # External IOTOWN MQTT server (TLS)
@@ -21,8 +26,8 @@ iotown:
 #   550e8400-e29b-41d4-a716-446655440000: 2a537d65-fb35-4aa4-b095-d47604914c45
 appGroupMapping: {}
 
-# Default group ID for unmapped applications
-defaultGroupId: default
+# Default group ID for unmapped applications (empty: their data is not forwarded)
+defaultGroupId: ""
 
 # ===== Applications excluded from bridging =====
 # Device uplinks from these ChirpStack application IDs are not forwarded to IOTOWN.
@@ -37,8 +42,8 @@ excludeApplications: []
 #   ac1f09fffe08d587: 2a537d65-fb35-4aa4-b095-d47604914c45
 gatewayGroupMapping: {}
 
-# Default group ID for unmapped gateways
-defaultGatewayGroupId: gateway
+# Default group ID for unmapped gateways (empty: their stats are not forwarded)
+defaultGatewayGroupId: ""
 
 # ===== Downlink Settings =====
 # Default values used when IOTOWN command payload is missing fields
@@ -49,3 +54,6 @@ downlink:
 # ===== Bridge Settings =====
 # Log level: debug, info, warn, error
 logLevel: info
+
+# Messages kept in memory while IOTOWN is unreachable (sent when it comes back; oldest dropped beyond this)
+maxQueuedMessages: 10000
