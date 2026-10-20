@@ -88,9 +88,16 @@ const connectionSchema = z.object({
 
 const logLevelSchema = z.object({ logLevel: z.enum(['error', 'warn', 'info', 'debug']) });
 
+// deleteIn throws when a parent on the path is missing, e.g. a config.yml written before the api section
+function deleteIfPresent(doc, keyPath) {
+  if (doc.hasIn(keyPath)) {
+    doc.deleteIn(keyPath);
+  }
+}
+
 function setSecret(doc, keyPath, value) {
   if (value === null) {
-    doc.deleteIn(keyPath);
+    deleteIfPresent(doc, keyPath);
   } else if (value) {
     doc.setIn(keyPath, value);
   }
@@ -293,9 +300,9 @@ async function startWebServer(bridge) {
         doc.setIn(['chirpstack', 'api', 'url'], apiUrl);
       } else {
         // Back to the ChirpStack installed alongside: its broker has no login
-        for (const key of ['host', 'port', 'tls', 'rejectUnauthorized', 'password']) doc.deleteIn(['chirpstack', 'mqtt', key]);
+        for (const key of ['host', 'port', 'tls', 'rejectUnauthorized', 'password']) deleteIfPresent(doc, ['chirpstack', 'mqtt', key]);
         doc.setIn(['chirpstack', 'mqtt', 'username'], '');
-        doc.deleteIn(['chirpstack', 'api', 'url']);
+        deleteIfPresent(doc, ['chirpstack', 'api', 'url']);
       }
       doc.setIn(['iotown', 'mqtt', 'host'], c.iotown.host);
       doc.setIn(['iotown', 'mqtt', 'port'], c.iotown.port);

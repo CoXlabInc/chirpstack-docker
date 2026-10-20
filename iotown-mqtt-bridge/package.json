@@ -1,6 +1,6 @@
 {
   "name": "iotown-mqtt-bridge",
-  "version": "1.1.16",
+  "version": "1.1.17",
   "description": "MQTT bridge between ChirpStack and IOTOWN",
   "main": "src/index.js",
   "scripts": {
