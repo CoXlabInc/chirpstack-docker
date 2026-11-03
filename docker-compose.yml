@@ -1,3 +1,6 @@
+# External images are pinned to exact versions, written only here: build.sh packages these
+# tags (and reports newer ones on Docker Hub), so every install runs the same versions.
+
 x-logging: &default-logging
   driver: json-file
   options:
@@ -10,7 +13,7 @@ x-logging: &default-logging
 services:
   chirpstack:
     container_name: chirpstack
-    image: chirpstack/chirpstack:4
+    image: chirpstack/chirpstack:4.20.0
     command: -c /etc/chirpstack
     restart: unless-stopped
     volumes:
@@ -29,7 +32,7 @@ services:
 
   chirpstack-gateway-bridge:
     container_name: chirp-gb
-    image: chirpstack/chirpstack-gateway-bridge:4
+    image: chirpstack/chirpstack-gateway-bridge:4.1.2
     restart: unless-stopped
     ports:
       - "1700:1700/udp"
@@ -45,7 +48,7 @@ services:
 
   chirpstack-gateway-bridge-basicstation:
     container_name: chirp-gbb
-    image: chirpstack/chirpstack-gateway-bridge:4
+    image: chirpstack/chirpstack-gateway-bridge:4.1.2
     restart: unless-stopped
     command: -c /etc/chirpstack-gateway-bridge/chirpstack-gateway-bridge-basicstation-eu868.toml
     ports:
@@ -58,7 +61,7 @@ services:
 
   chirpstack-rest-api:
     container_name: chirp-api
-    image: chirpstack/chirpstack-rest-api:4
+    image: chirpstack/chirpstack-rest-api:4.20.0
     restart: unless-stopped
     command: --server chirpstack:8080 --bind 0.0.0.0:8090 --insecure
     ports:
@@ -69,7 +72,7 @@ services:
 
   postgres:
     container_name: chirp-postgres
-    image: postgres:14-alpine
+    image: postgres:14.24-alpine
     restart: unless-stopped
     volumes:
       - ./configuration/postgresql/initdb:/docker-entrypoint-initdb.d
@@ -82,7 +85,7 @@ services:
 
   redis:
     container_name: chirp-redis
-    image: redis:7-alpine
+    image: redis:7.4.12-alpine
     restart: unless-stopped
     command: redis-server --save 3600 1 --appendonly no
     volumes:
@@ -91,7 +94,7 @@ services:
 
   mosquitto:
     container_name: chirp-mqtt
-    image: eclipse-mosquitto:2
+    image: eclipse-mosquitto:2.1.2-alpine
     restart: unless-stopped
     ports:
       - "1883:1883"

@@ -100,28 +100,30 @@ else
     echo "[1/5] Building iotown-mqtt-bridge image for ${PLATFORM}..."
     docker build --platform "${PLATFORM}" -t iotown-mqtt-bridge:latest ./iotown-mqtt-bridge
 
-    # 2. 모든 이미지 pull
+    # 2. Pull the external images. Their exact tags are written only in docker-compose.yml.
     echo "[2/5] Pulling all images for ${PLATFORM}..."
-    IMAGES=(
-        "chirpstack/chirpstack:4"
-        "chirpstack/chirpstack-gateway-bridge:4"
-        "chirpstack/chirpstack-rest-api:4"
-        "postgres:14-alpine"
-        "redis:7-alpine"
-        "eclipse-mosquitto:2"
-        "iotown-mqtt-bridge:latest"
-    )
+    EXTERNAL_IMAGES=()
+    while IFS= read -r IMAGE; do
+        EXTERNAL_IMAGES+=("$IMAGE")
+    done < <(sed -n 's/^[[:space:]]*image:[[:space:]]*//p' docker-compose.yml | tr -d "\"'" | awk '!seen[$0]++')
 
-    for IMAGE in "${IMAGES[@]}"; do
-        if [[ "$IMAGE" != "iotown-mqtt-bridge:latest" ]]; then
-            echo "  Pulling ${IMAGE}..."
-            docker pull --platform "${PLATFORM}" "$IMAGE"
-        fi
+    # Report newer versions on Docker Hub (never stops the build; skipped offline or without Node.js)
+    if command -v node > /dev/null 2>&1; then
+        echo "  Checking Docker Hub for newer versions..."
+        node scripts/check-images.mjs "${EXTERNAL_IMAGES[@]}" || echo "  Image version check failed, continuing"
+    fi
+
+    for IMAGE in "${EXTERNAL_IMAGES[@]}"; do
+        echo "  Pulling ${IMAGE}..."
+        docker pull --platform "${PLATFORM}" "$IMAGE"
     done
+    IMAGES=("${EXTERNAL_IMAGES[@]}" "iotown-mqtt-bridge:latest")
 
     # 3. 이미지 저장 (하나의 파일로 합침)
     echo "[3/5] Saving Docker images..."
-    docker save "${IMAGES[@]}" | gzip > "${PACKAGE_DIR}/images.tar.gz"
+    # --platform: with the containerd image store a tag can hold several platforms, and without it
+    # docker save uses the host's (arm64 on a Mac)
+    docker save --platform "${PLATFORM}" "${IMAGES[@]}" | gzip > "${PACKAGE_DIR}/images.tar.gz"
 
     # 4. 설정 파일 복사
     echo "[4/5] Copying configuration files..."

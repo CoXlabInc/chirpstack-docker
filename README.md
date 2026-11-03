@@ -55,6 +55,14 @@ The mapping page picks applications and gateways by name through the ChirpStack 
 API key from ChirpStack (API keys) must be entered under Connections first. Set `WEB_PORT=0` to turn the
 UI off.
 
+## Image versions
+
+The external images (ChirpStack, Gateway Bridge, REST API, PostgreSQL, Redis, Mosquitto) are pinned to
+exact versions in `docker-compose.yml`, the only place their tags are written. `build.sh` packages those
+tags and, when Node.js is available, reports newer ones on Docker Hub (`node scripts/check-images.mjs
+<image>...`; skipped offline). To upgrade, change the tag in `docker-compose.yml`. ChirpStack migrates its
+database on startup; a new PostgreSQL major version needs a dump and restore.
+
 ## Server-specific changes
 
 Keep changes for one server out of `docker-compose.yml`, so it can be updated by `git pull` or by the
